@@ -6,7 +6,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -34,9 +34,35 @@ public class UserController {
     return user;
   }
 
-  @GetMapping("/users")
-  public ResponseEntity<List<User>> findConnectedUser() {
-    return ResponseEntity.ok(service.findConnectedUsers());
+  @GetMapping(path = "/user")
+  public ResponseEntity<User> getUserByEmail(@RequestParam("email") String email) {
+    User foundUser = service.findUserByEmail(email);
+    if (foundUser == null) {
+      return ResponseEntity.notFound().build();
+    }
+    return ResponseEntity.ok(foundUser);
+  }
+
+  /**
+   * creates a user with email and name provided by client if user does not exist.
+   * @return ResponseEntity with 201 and assigned userId.
+   */
+  @GetMapping(path = "/user/create")
+  public ResponseEntity<User> createUser(@RequestParam("email") String email) {
+    User foundUser = service.findUserByEmail(email);
+    if (foundUser == null) {
+      foundUser = service.createUser(email);
+    }
+    return ResponseEntity.ok(foundUser);
+  }
+
+  /**
+   *
+   * @return connected users that are part of chat with user
+   */
+  @GetMapping(path = "/users/{userId}")
+  public ResponseEntity<List<User>> findConnectedUsers(@PathVariable("userId") String userId) {
+    return ResponseEntity.ok(service.findChatUser(userId));
   }
 
 }

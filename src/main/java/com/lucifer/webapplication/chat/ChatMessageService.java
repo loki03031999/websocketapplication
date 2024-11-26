@@ -15,22 +15,13 @@ public class ChatMessageService {
   private final ChatRoomService chatRoomService;
 
   public ChatMessage save(ChatMessage chatMessage) {
-    var chatId = chatRoomService.getChatRoomId(
-            chatMessage.getSenderId(),
-            chatMessage.getRecipientId(),
-            true
-    ).orElseThrow();//create your own dedicated exception
-    chatMessage.setChatId(chatId);
-    repository.save(chatMessage);
-    return chatMessage;
+    return repository.save(chatMessage);
   }
 
   public List<ChatMessage> findChatMessages(
-          String senderId,
-          String recipientId
+          String chatRoomId
   ) {
-    var chatId = chatRoomService.getChatRoomId(senderId, recipientId, false);
-    return chatId.map(repository::findByChatId).orElse(new ArrayList<>());
+    return repository.findByChatRoomId(chatRoomId);
   }
 
 }

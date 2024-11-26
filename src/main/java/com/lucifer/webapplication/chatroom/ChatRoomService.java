@@ -1,8 +1,13 @@
 package com.lucifer.webapplication.chatroom;
 
+import com.lucifer.webapplication.user.User;
+import com.lucifer.webapplication.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -10,40 +15,41 @@ import java.util.Optional;
 public class ChatRoomService {
 
   private final ChatRoomRepository chatRoomRepository;
-  public Optional<String> getChatRoomId(
-          String senderId,
-          String recipientId,
-          boolean createNewRoomIfNotExists
-  ) {
-    return chatRoomRepository.findBySenderIdAndRecipientId(senderId, recipientId)
-            .map(ChatRoom::getChatId)
-            .or(() -> {
-              if (createNewRoomIfNotExists) {
-                var chatId = createChat(senderId, recipientId);
-                return Optional.of(chatId);
-              }
-              return Optional.empty();
-            });
+  private final UserRepository userRepository;
+
+  public List<ChatRoom> getChatRoomByIds(List<String> chatRoomIds) {
+    return chatRoomRepository.findAllById(chatRoomIds);
   }
 
-  private String createChat(String senderId, String recipientId) {
-    var chatId = String.format("%s_%s", senderId, recipientId);
-
-    ChatRoom senderRecipient = ChatRoom.builder()
-            .chatId(chatId)
-            .senderId(senderId)
-            .recipientId(recipientId)
+  public ChatRoom createChatRoom(String senderId, String recipientId) {
+    ChatRoom chatRoom = ChatRoom.builder()
+            .participantIds(Collections.emptyList())
             .build();
 
-    ChatRoom recipientSender = ChatRoom.builder()
-            .chatId(chatId)
-            .senderId(recipientId)
-            .recipientId(senderId)
-            .build();
+    chatRoom.getParticipantIds().add(senderId);
+    chatRoom.getParticipantIds().add(recipientId);
 
-    chatRoomRepository.save(senderRecipient);
-    chatRoomRepository.save(recipientSender);
-    return chatId;
+    User sender = userRepository.findById(senderId).orElse(null);
+    User receiver = userRepository.findById(recipientId).orElse(null);
+    if (sender == null || receiver == null) return null;
+
+    chatRoom = chatRoomRepository.save(chatRoom);
+
+    if (sender.getChatRoomIds() == null) {
+      sender.setChatRoomIds(Collections.emptyList());
+    }
+
+    if (receiver.getChatRoomIds() == null) {
+      receiver.setChatRoomIds(Collections.emptyList());
+    }
+
+    sender.getChatRoomIds().add(chatRoom.getId());
+    receiver.getChatRoomIds().add(chatRoom.getId());
+
+    userRepository.save(sender);
+    userRepository.save(receiver);
+
+    return chatRoom;
   }
 
 }
