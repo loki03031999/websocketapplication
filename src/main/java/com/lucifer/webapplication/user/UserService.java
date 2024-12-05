@@ -2,7 +2,13 @@ package com.lucifer.webapplication.user;
 
 import com.lucifer.webapplication.chatroom.ChatRoom;
 import com.lucifer.webapplication.chatroom.ChatRoomService;
+import com.lucifer.webapplication.errors.InvalidEmail;
+import com.lucifer.webapplication.errors.InvalidUser;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.validator.routines.EmailValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -12,7 +18,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class UserService {
-
+  Logger logger = LoggerFactory.getLogger(UserService.class);
   private final UserRepository repository;
   private final ChatRoomService chatRoomService;
 
@@ -30,12 +36,31 @@ public class UserService {
   }
 
   public User findUserByEmail(String emailId) {
-    return repository.findByEmail(emailId).orElse(null);
+    emailId = StringUtils.trim(emailId);
+    validateEmail(emailId);
+    User user = repository.findByEmail(emailId).orElse(null);
+
+    if (user == null) {
+      throw new InvalidUser("User does not exist");
+    }
+    return user;
+  }
+
+  public User createUser(String email) {
+    validateEmail(email);
+    User user = User.builder()
+            .name(email)
+            .email(email)
+            .chatRoomIds(Collections.emptyList())
+            .build();
+    return repository.save(user);
   }
 
   public List<User> findChatUser(String userId) {
     User user = repository.findById(userId).orElse(null);
-    if (user == null) return Collections.emptyList();
+    if (user == null) {
+      throw new InvalidUser("user does not exist");
+    }
 
     List<ChatRoom> chatRooms = chatRoomService.getChatRoomByIds(user.getChatRoomIds());
 
@@ -49,15 +74,10 @@ public class UserService {
     return repository.findAllById(participantIds);
   }
 
-  public User createUser(String email) {
-
-    User user = User.builder()
-            .name(email)
-            .email(email)
-            .chatRoomIds(Collections.emptyList())
-            .build();
-
-    user = repository.save(user);
-    return user;
+  private void validateEmail(String email) {
+    if (!EmailValidator.getInstance().isValid(email)) {
+      logger.error("Email validation failed, Reason - provided email is invalid");
+      throw new InvalidEmail("Invalid Email");
+    }
   }
 }
